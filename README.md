@@ -1,0 +1,2 @@
+# Dotifiles
+Configuração 
