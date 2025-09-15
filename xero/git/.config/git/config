@@ -1,0 +1,26 @@
+[user]
+	name = xero
+	email = x@xero.style
+	signingkey = 0DA7AB45AC1D0000
+[credential]
+	helper = cache
+[alias]
+	graphgpg = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%C(blue)%x20(%ce)%x20%C(cyan)[gpg:%GK%x20%G?]%C(reset)%n%x20%s%n"
+	graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%C(blue)%x20(%ce)%x20%C(cyan)%C(reset)%n%x20%s%n"
+	unstage = reset HEAD --
+	d = difftool
+	c = clone
+[color]
+	ui = auto
+[diff]
+	tool = nvimdiff
+[difftool "nvimdiff"]
+	cmd = "nvim --cmd \":lua vim.g.noplugins=1\" -d \"$LOCAL\" \"$REMOTE\""
+[difftool]
+	prompt = false
+[gpg]
+	program = gpg
+[core]
+     attributesFile = ~/.config/git/gitattributes
+[init]
+	defaultBranch = main
