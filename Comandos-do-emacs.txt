@@ -1,0 +1,136 @@
+Guia de Referência do Emacs para Programação
+============================================
+
+Atalhos Gerais
+--------------
+C-x C-f     -> Abrir arquivo
+C-x C-s     -> Salvar arquivo
+C-x C-w     -> Salvar como
+C-x C-c     -> Sair do Emacs
+C-g         -> Cancelar comando em execução
+
+Navegação
+---------
+C-a         -> Início da linha
+C-e         -> Final da linha
+M-f         -> Avançar palavra
+M-b         -> Retroceder palavra
+C-n         -> Próxima linha
+C-p         -> Linha anterior
+M-g g       -> Ir para linha específica
+M-<         -> Início do arquivo
+M->         -> Final do arquivo
+
+Edição
+------
+C-k         -> Apagar até o fim da linha
+M-d         -> Apagar próxima palavra
+C-d         -> Apagar caractere
+C-SPC       -> Iniciar seleção (mark set)
+C-w         -> Cortar seleção
+M-w         -> Copiar seleção
+C-y         -> Colar
+C-/ ou C-x u-> Desfazer
+M-u         -> Uppercase palavra
+M-l         -> Lowercase palavra
+M-c         -> Capitalize palavra
+
+Busca e Substituição
+--------------------
+C-s         -> Busca incremental para frente
+C-r         -> Busca incremental para trás
+M-%         -> Substituir texto
+M-x replace-regexp -> Substituição por regex
+   Exemplo: ^\w+ -> pega primeira palavra de cada linha
+
+Gerenciamento de Janelas
+------------------------
+C-x 2       -> Dividir janela horizontalmente
+C-x 3       -> Dividir janela verticalmente
+C-x o       -> Mudar para outra janela
+C-x 1       -> Fechar todas menos a atual
+C-x b       -> Trocar buffer
+C-x k       -> Fechar buffer
+
+Ajuda
+-----
+C-h k       -> Ajuda para um atalho
+C-h f       -> Ajuda para função
+C-h v       -> Ajuda para variável
+C-h m       -> Ajuda do modo atual
+C-h t       -> Tutorial do Emacs
+
+Macros
+------
+C-x (       -> Iniciar macro
+C-x )       -> Finalizar macro
+C-x e       -> Executar macro
+
+Abrir Terminal
+--------------
+M-x shell       -> Shell simples
+M-x eshell      -> Shell em Lisp (portável)
+M-x term        -> Terminal mais completo
+M-x ansi-term   -> Terminal ANSI (ex: bash, zsh)
+
+Compilação e Teste de Programas
+-------------------------------
+M-x compile     -> Compilar projeto (ex: make, gcc main.c -o main)
+M-x recompile   -> Recompilar último comando
+M-g n           -> Ir para próximo erro
+M-g p           -> Ir para erro anterior
+M-x next-error  -> Próximo erro
+M-x previous-error -> Erro anterior
+
+Execução
+--------
+M-! comando     -> Executar comando do sistema (ex: M-! ls)
+M-| comando     -> Executar comando e enviar região selecionada como entrada
+M-x async-shell-command -> Rodar comando em background
+
+Depuração
+---------
+M-x gdb         -> Iniciar GDB integrado
+M-x gud-gdb     -> Outra interface para GDB
+M-x pdb         -> Depurar Python
+M-x debug-on-error -> Debug do Emacs Lisp
+
+Suporte a Linguagens
+--------------------
+- Python: M-x run-python
+- C/C++: M-x compile (com gcc/clang)
+- Java: M-x compile (javac Arquivo.java)
+- Lisp: M-x ielm (REPL interativo do Emacs Lisp)
+- Outros: configurar com modos maiores (major modes)
+
+Integração com Git (Magit)
+--------------------------
+M-x magit-status -> Status do repositório
+s                -> Stage
+u                -> Unstage
+c c              -> Commit
+p p              -> Push
+f f              -> Pull
+l l              -> Log
+
+Múltiplos Cursores (com multiple-cursors)
+-----------------------------------------
+C-S-c C-S-c      -> Ativar múltiplos cursores
+C->              -> Selecionar próxima ocorrência
+C-<              -> Selecionar ocorrência anterior
+C-c C-<          -> Selecionar todas as ocorrências
+
+Dicas Úteis
+-----------
+- Use M-x package-list-packages para instalar pacotes extras
+- Company-mode: autocompletar código
+- Flycheck: ver erros em tempo real
+- Projectile: gerenciar projetos
+- Magit: melhor cliente Git dentro do Emacs
+- LSP-mode: suporte a IDE moderna (auto-complete, refatoração, lint)
+
+Observação:
+-----------
+C- = tecla Control
+M- = tecla Meta (geralmente Alt ou Esc)
+RET = tecla Enter
