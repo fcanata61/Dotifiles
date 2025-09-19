@@ -1,0 +1,141 @@
+import asyncio
+from colorama import init, Fore, Style
+from config import Config
+from recipe import RecipeManager
+from install import Installer
+from remove import Remover
+from download import Downloader
+from extract import Extractor
+from upgrade import UpgraderV3
+from update import Updater
+from sync import SyncManager
+from patch import PatchApplier
+from hooks import HooksManager
+from uses import UseManager
+
+# Inicializa colorama
+init(autoreset=True)
+
+# Funções de log colorido
+def log_info(msg): print(Fore.GREEN + msg)
+def log_warning(msg): print(Fore.YELLOW + msg)
+def log_error(msg): print(Fore.RED + msg)
+def log_title(msg): print(Fore.CYAN + Style.BRIGHT + msg)
+
+# Inicializa módulos
+installer = Installer()
+remover = Remover()
+downloader = Downloader(Config.BUILD_DIR, sandbox=None, hooks=HooksManager())
+extractor = Extractor(sandbox=None, hooks=HooksManager())
+upgrader = UpgraderV3()
+updater = Updater()
+sync_manager = SyncManager.from_config(Config.REPO_FILE)
+patcher = PatchApplier(Config.BUILD_DIR)
+hooks = HooksManager()
+use_manager = UseManager()
+recipe_manager = RecipeManager()
+
+# Verifica status de pacote
+def pacote_status(recipe_name):
+    try:
+        installed = recipe_manager.get_installed(recipe_name)
+        return "INSTALADO", Fore.GREEN
+    except Exception:
+        return "NÃO INSTALADO", Fore.RED
+
+# Lista pacotes com cores
+def listar_receitas():
+    log_title("Receitas disponíveis:")
+    for recipe in recipe_manager.list_recipes():
+        status_text, color = pacote_status(recipe.name)
+        print(Fore.MAGENTA + f" - {recipe.name} ({recipe.version}) [{color}{status_text}{Fore.MAGENTA}]")
+
+# Funções rápidas
+def cmd_instalar(pkg):
+    log_info(f"Instalando {pkg}...")
+    installer.install(pkg)
+    downloader.download(pkg)
+    extractor.extract_all_parallel(pkg)
+    asyncio.run(patcher.apply_recipe_patches(pkg, ["./build_dir"]))
+    asyncio.run(hooks.run_all_hooks(pkg))
+    flags = asyncio.run(use_manager.get_flags(pkg))
+    log_info(f"Flags USE para {pkg}: {flags}")
+    log_info(f"Pacote {pkg} instalado!")
+
+def cmd_remover(pkg):
+    remover.remove(pkg)
+    log_info(f"Pacote {pkg} removido!")
+
+def cmd_flags(pkg):
+    flags = asyncio.run(use_manager.get_flags(pkg))
+    log_info(f"Flags USE para {pkg}: {flags}")
+
+def cmd_gerenciar_flags(pkg):
+    flags = asyncio.run(use_manager.get_flags(pkg))
+    log_info(f"Flags atuais de {pkg}: {flags}")
+    print("Digite a flag para ativar/desativar (ou 'sair' para voltar):")
+    while True:
+        f = input("Flag: ").strip()
+        if f.lower() == "sair":
+            break
+        if f in flags:
+            asyncio.run(use_manager.disable_flag(pkg, f))
+            log_info(f"Flag {f} desativada.")
+        else:
+            asyncio.run(use_manager.enable_flag(pkg, f))
+            log_info(f"Flag {f} ativada.")
+        flags = asyncio.run(use_manager.get_flags(pkg))
+        log_info(f"Flags atuais: {flags}")
+
+# Comandos principais
+def cmd_sync(): asyncio.run(sync_manager.sync_all()); log_info("Repos sincronizados!")
+def cmd_update(): updater.update(world=True); log_info("Sistema atualizado!")
+def cmd_upgrade(): asyncio.run(upgrader.upgrade_packages()); log_info("Upgrade concluído!")
+
+# Loop do terminal interativo
+def main_loop():
+    log_title("=== Merge Program Manager (Terminal) ===")
+    log_info("Digite 'help' para ver os comandos disponíveis.\n")
+    while True:
+        listar_receitas()
+        cmd = input(Fore.YELLOW + "\n> ").strip()
+        if not cmd:
+            continue
+        parts = cmd.split()
+        action = parts[0].lower()
+        arg = parts[1] if len(parts) > 1 else None
+
+        if action == "help":
+            print(Fore.CYAN + """
+Comandos disponíveis:
+ i <pacote>       - Instalar pacote
+ r <pacote>       - Remover pacote
+ f <pacote>       - Mostrar flags USE
+ g <pacote>       - Gerenciar flags USE
+ sync             - Sincronizar repositórios
+ update           - Atualizar sistema
+ upgrade          - Upgrade do sistema
+ exit / quit      - Sair
+""")
+        elif action == "i" and arg:
+            cmd_instalar(arg)
+        elif action == "r" and arg:
+            cmd_remover(arg)
+        elif action == "f" and arg:
+            cmd_flags(arg)
+        elif action == "g" and arg:
+            cmd_gerenciar_flags(arg)
+        elif action == "sync":
+            cmd_sync()
+        elif action == "update":
+            cmd_update()
+        elif action == "upgrade":
+            cmd_upgrade()
+        elif action in ["exit", "quit"]:
+            log_info("Saindo do gerenciador...")
+            break
+        else:
+            log_warning("Comando inválido! Digite 'help' para ajuda.")
+
+if __name__ == "__main__":
+    main_loop()
