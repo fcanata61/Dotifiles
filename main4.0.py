@@ -15,6 +15,7 @@ from uses import UseManager
 from sandbox import Sandbox
 from merge_autocomplete import setup_autocomplete
 from logs import info, success, warn, error, stage
+from colorama import Fore, Style
 
 # Inicializa módulos
 installer = Installer()
@@ -38,34 +39,50 @@ setup_autocomplete(recipe_manager, ["i", "r", "f", "g", "info", "build", "sync",
 def pacote_status(recipe_name):
     try:
         installed = recipe_manager.get_installed(recipe_name)
+        # Verifica se há update disponível
+        if recipe_manager.has_update(recipe_name):
+            return "UPDATE"
         return "INSTALADO"
     except Exception:
         return "NÃO INSTALADO"
+
+def color_status(status):
+    if status == "INSTALADO": return Fore.GREEN + status + Fore.RESET
+    if status == "NÃO INSTALADO": return Fore.RED + status + Fore.RESET
+    if status == "UPDATE": return Fore.YELLOW + status + Fore.RESET
+    if status == "ERRO": return Fore.RED + Style.BRIGHT + status + Fore.RESET
+    return status
 
 def listar_receitas():
     stage("Receitas disponíveis:")
     for recipe in recipe_manager.list_recipes():
         status = pacote_status(recipe.name)
-        color_status = success(status) if status == "INSTALADO" else warn(status)
-        info(f" - {recipe.name} ({recipe.version}) [{color_status}]")
+        flags = asyncio.run(use_manager.get_flags(recipe.name))
+        info(f" - {recipe.name} ({recipe.version}) [{color_status(status)}] Flags: {', '.join(flags) if flags else 'Nenhuma'}")
 
 # --------------------
-# Comandos rápidos
+# Comandos principais
 # --------------------
 def cmd_instalar(pkg):
     stage(f"Iniciando instalação de {pkg}...")
-    installer.install(pkg)
-    downloader.download(pkg)
-    extractor.extract_all_parallel(pkg)
-    asyncio.run(patcher.apply_recipe_patches(pkg, ["./build_dir"]))
-    asyncio.run(hooks.run_all_hooks(pkg))
-    flags = asyncio.run(use_manager.get_flags(pkg))
-    info(f"Flags USE para {pkg}: {flags}")
-    success(f"Pacote {pkg} instalado!")
+    try:
+        installer.install(pkg)
+        downloader.download(pkg)
+        extractor.extract_all_parallel(pkg)
+        asyncio.run(patcher.apply_recipe_patches(pkg, ["./build_dir"]))
+        asyncio.run(hooks.run_all_hooks(pkg))
+        flags = asyncio.run(use_manager.get_flags(pkg))
+        info(f"Flags USE para {pkg}: {flags}")
+        success(f"Pacote {pkg} instalado!")
+    except Exception as e:
+        error(f"Erro ao instalar {pkg}: {e}")
 
 def cmd_remover(pkg):
-    remover.remove(pkg)
-    success(f"Pacote {pkg} removido!")
+    try:
+        remover.remove(pkg)
+        success(f"Pacote {pkg} removido!")
+    except Exception as e:
+        error(f"Erro ao remover {pkg}: {e}")
 
 def cmd_flags(pkg):
     flags = asyncio.run(use_manager.get_flags(pkg))
@@ -95,24 +112,30 @@ def cmd_upgrade(): asyncio.run(upgrader.upgrade_packages()); success("Upgrade co
 # Novos comandos
 # --------------------
 def cmd_info(pkg):
-    recipe = recipe_manager.get_recipe(pkg)
-    status = pacote_status(pkg)
-    flags = asyncio.run(use_manager.get_flags(pkg))
-    stage(f"Informações do pacote: {pkg}")
-    info(f"Nome: {recipe.name}")
-    info(f"Versão: {recipe.version}")
-    info(f"Status: {status}")
-    info(f"Dependências: {', '.join(recipe.dependencies) if recipe.dependencies else 'Nenhuma'}")
-    info(f"Flags USE: {flags}")
-    info(f"Receitas: {recipe.recipe_file}")
+    try:
+        recipe = recipe_manager.get_recipe(pkg)
+        status = pacote_status(pkg)
+        flags = asyncio.run(use_manager.get_flags(pkg))
+        stage(f"Informações do pacote: {pkg}")
+        info(f"Nome: {recipe.name}")
+        info(f"Versão: {recipe.version}")
+        info(f"Status: {color_status(status)}")
+        info(f"Dependências: {', '.join(recipe.dependencies) if recipe.dependencies else 'Nenhuma'}")
+        info(f"Flags USE: {', '.join(flags) if flags else 'Nenhuma'}")
+        info(f"Receitas: {recipe.recipe_file}")
+    except Exception as e:
+        error(f"Erro ao obter info de {pkg}: {e}")
 
 def cmd_build(pkg):
     stage(f"Iniciando build simulado para {pkg}...")
-    downloader.download(pkg)
-    extractor.extract_all_parallel(pkg)
-    asyncio.run(patcher.apply_recipe_patches(pkg, ["./build_dir"]))
-    asyncio.run(hooks.run_all_hooks(pkg))
-    success(f"Build de {pkg} concluído (simulado, pacote não instalado).")
+    try:
+        downloader.download(pkg)
+        extractor.extract_all_parallel(pkg)
+        asyncio.run(patcher.apply_recipe_patches(pkg, ["./build_dir"]))
+        asyncio.run(hooks.run_all_hooks(pkg))
+        success(f"Build de {pkg} concluído (simulado, pacote não instalado).")
+    except Exception as e:
+        error(f"Erro no build simulado de {pkg}: {e}")
 
 # --------------------
 # Loop principal
