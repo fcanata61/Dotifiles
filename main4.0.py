@@ -35,7 +35,9 @@ hooks = HooksManager()
 use_manager = UseManager()
 recipe_manager = RecipeManager()
 
-# Verifica status de pacote
+# --------------------
+# Funções auxiliares
+# --------------------
 def pacote_status(recipe_name):
     try:
         installed = recipe_manager.get_installed(recipe_name)
@@ -43,14 +45,12 @@ def pacote_status(recipe_name):
     except Exception:
         return "NÃO INSTALADO", Fore.RED
 
-# Lista pacotes com cores
 def listar_receitas():
     log_title("Receitas disponíveis:")
     for recipe in recipe_manager.list_recipes():
         status_text, color = pacote_status(recipe.name)
         print(Fore.MAGENTA + f" - {recipe.name} ({recipe.version}) [{color}{status_text}{Fore.MAGENTA}]")
 
-# Funções rápidas
 def cmd_instalar(pkg):
     log_info(f"Instalando {pkg}...")
     installer.install(pkg)
@@ -87,14 +87,48 @@ def cmd_gerenciar_flags(pkg):
         flags = asyncio.run(use_manager.get_flags(pkg))
         log_info(f"Flags atuais: {flags}")
 
-# Comandos principais
-def cmd_sync(): asyncio.run(sync_manager.sync_all()); log_info("Repos sincronizados!")
-def cmd_update(): updater.update(world=True); log_info("Sistema atualizado!")
-def cmd_upgrade(): asyncio.run(upgrader.upgrade_packages()); log_info("Upgrade concluído!")
+def cmd_sync():
+    asyncio.run(sync_manager.sync_all())
+    log_info("Repos sincronizados!")
 
-# Loop do terminal interativo
+def cmd_update():
+    updater.update(world=True)
+    log_info("Sistema atualizado!")
+
+def cmd_upgrade():
+    asyncio.run(upgrader.upgrade_packages())
+    log_info("Upgrade concluído!")
+
+# --------------------
+# Novos comandos
+# --------------------
+def cmd_info(pkg):
+    # Mostra informações detalhadas sobre o pacote
+    recipe = recipe_manager.get_recipe(pkg)
+    status, color = pacote_status(pkg)
+    flags = asyncio.run(use_manager.get_flags(pkg))
+    log_title(f"Informações do pacote: {pkg}")
+    print(Fore.MAGENTA + f"Nome: {recipe.name}")
+    print(Fore.MAGENTA + f"Versão: {recipe.version}")
+    print(Fore.MAGENTA + f"Status: {color}{status}")
+    print(Fore.MAGENTA + f"Dependências: {', '.join(recipe.dependencies) if recipe.dependencies else 'Nenhuma'}")
+    print(Fore.MAGENTA + f"Flags USE: {flags}")
+    print(Fore.MAGENTA + f"Receitas: {recipe.recipe_file}")
+
+def cmd_build(pkg):
+    # Executa todo o processo de build sem instalar
+    log_info(f"Iniciando build simulado para {pkg}...")
+    downloader.download(pkg)
+    extractor.extract_all_parallel(pkg)
+    asyncio.run(patcher.apply_recipe_patches(pkg, ["./build_dir"]))
+    asyncio.run(hooks.run_all_hooks(pkg))
+    log_info(f"Build de {pkg} concluído (simulado, pacote não instalado).")
+
+# --------------------
+# Loop principal
+# --------------------
 def main_loop():
-    log_title("=== Merge Program Manager (Terminal) ===")
+    log_title("=== Merge Program Manager (Terminal Avançado) ===")
     log_info("Digite 'help' para ver os comandos disponíveis.\n")
     while True:
         listar_receitas()
@@ -112,30 +146,24 @@ Comandos disponíveis:
  r <pacote>       - Remover pacote
  f <pacote>       - Mostrar flags USE
  g <pacote>       - Gerenciar flags USE
+ info <pacote>    - Mostrar informações detalhadas do pacote
+ build <pacote>   - Simular build sem instalar
  sync             - Sincronizar repositórios
  update           - Atualizar sistema
  upgrade          - Upgrade do sistema
  exit / quit      - Sair
 """)
-        elif action == "i" and arg:
-            cmd_instalar(arg)
-        elif action == "r" and arg:
-            cmd_remover(arg)
-        elif action == "f" and arg:
-            cmd_flags(arg)
-        elif action == "g" and arg:
-            cmd_gerenciar_flags(arg)
-        elif action == "sync":
-            cmd_sync()
-        elif action == "update":
-            cmd_update()
-        elif action == "upgrade":
-            cmd_upgrade()
-        elif action in ["exit", "quit"]:
-            log_info("Saindo do gerenciador...")
-            break
-        else:
-            log_warning("Comando inválido! Digite 'help' para ajuda.")
+        elif action == "i" and arg: cmd_instalar(arg)
+        elif action == "r" and arg: cmd_remover(arg)
+        elif action == "f" and arg: cmd_flags(arg)
+        elif action == "g" and arg: cmd_gerenciar_flags(arg)
+        elif action == "sync": cmd_sync()
+        elif action == "update": cmd_update()
+        elif action == "upgrade": cmd_upgrade()
+        elif action == "info" and arg: cmd_info(arg)
+        elif action == "build" and arg: cmd_build(arg)
+        elif action in ["exit", "quit"]: log_info("Saindo do gerenciador..."); break
+        else: log_warning("Comando inválido! Digite 'help' para ajuda.")
 
 if __name__ == "__main__":
     main_loop()
