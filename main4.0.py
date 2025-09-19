@@ -1,5 +1,5 @@
 import asyncio
-from colorama import init, Fore, Style
+import readline
 from config import Config
 from recipe import RecipeManager
 from install import Installer
@@ -12,21 +12,15 @@ from sync import SyncManager
 from patch import PatchApplier
 from hooks import HooksManager
 from uses import UseManager
-
-# Inicializa colorama
-init(autoreset=True)
-
-# Funções de log colorido
-def log_info(msg): print(Fore.GREEN + msg)
-def log_warning(msg): print(Fore.YELLOW + msg)
-def log_error(msg): print(Fore.RED + msg)
-def log_title(msg): print(Fore.CYAN + Style.BRIGHT + msg)
+from sandbox import Sandbox
+from merge_autocomplete import setup_autocomplete
+from logs import info, success, warn, error, stage
 
 # Inicializa módulos
 installer = Installer()
 remover = Remover()
-downloader = Downloader(Config.BUILD_DIR, sandbox=None, hooks=HooksManager())
-extractor = Extractor(sandbox=None, hooks=HooksManager())
+downloader = Downloader(Config.BUILD_DIR, sandbox=Sandbox, hooks=HooksManager())
+extractor = Extractor(sandbox=Sandbox, hooks=HooksManager())
 upgrader = UpgraderV3()
 updater = Updater()
 sync_manager = SyncManager.from_config(Config.REPO_FILE)
@@ -35,112 +29,107 @@ hooks = HooksManager()
 use_manager = UseManager()
 recipe_manager = RecipeManager()
 
+# Configura autocomplete
+setup_autocomplete(recipe_manager, ["i", "r", "f", "g", "info", "build", "sync", "update", "upgrade"])
+
 # --------------------
 # Funções auxiliares
 # --------------------
 def pacote_status(recipe_name):
     try:
         installed = recipe_manager.get_installed(recipe_name)
-        return "INSTALADO", Fore.GREEN
+        return "INSTALADO"
     except Exception:
-        return "NÃO INSTALADO", Fore.RED
+        return "NÃO INSTALADO"
 
 def listar_receitas():
-    log_title("Receitas disponíveis:")
+    stage("Receitas disponíveis:")
     for recipe in recipe_manager.list_recipes():
-        status_text, color = pacote_status(recipe.name)
-        print(Fore.MAGENTA + f" - {recipe.name} ({recipe.version}) [{color}{status_text}{Fore.MAGENTA}]")
+        status = pacote_status(recipe.name)
+        color_status = success(status) if status == "INSTALADO" else warn(status)
+        info(f" - {recipe.name} ({recipe.version}) [{color_status}]")
 
+# --------------------
+# Comandos rápidos
+# --------------------
 def cmd_instalar(pkg):
-    log_info(f"Instalando {pkg}...")
+    stage(f"Iniciando instalação de {pkg}...")
     installer.install(pkg)
     downloader.download(pkg)
     extractor.extract_all_parallel(pkg)
     asyncio.run(patcher.apply_recipe_patches(pkg, ["./build_dir"]))
     asyncio.run(hooks.run_all_hooks(pkg))
     flags = asyncio.run(use_manager.get_flags(pkg))
-    log_info(f"Flags USE para {pkg}: {flags}")
-    log_info(f"Pacote {pkg} instalado!")
+    info(f"Flags USE para {pkg}: {flags}")
+    success(f"Pacote {pkg} instalado!")
 
 def cmd_remover(pkg):
     remover.remove(pkg)
-    log_info(f"Pacote {pkg} removido!")
+    success(f"Pacote {pkg} removido!")
 
 def cmd_flags(pkg):
     flags = asyncio.run(use_manager.get_flags(pkg))
-    log_info(f"Flags USE para {pkg}: {flags}")
+    info(f"Flags USE para {pkg}: {flags}")
 
 def cmd_gerenciar_flags(pkg):
     flags = asyncio.run(use_manager.get_flags(pkg))
-    log_info(f"Flags atuais de {pkg}: {flags}")
+    info(f"Flags atuais de {pkg}: {flags}")
     print("Digite a flag para ativar/desativar (ou 'sair' para voltar):")
     while True:
         f = input("Flag: ").strip()
-        if f.lower() == "sair":
-            break
+        if f.lower() == "sair": break
         if f in flags:
             asyncio.run(use_manager.disable_flag(pkg, f))
-            log_info(f"Flag {f} desativada.")
+            warn(f"Flag {f} desativada.")
         else:
             asyncio.run(use_manager.enable_flag(pkg, f))
-            log_info(f"Flag {f} ativada.")
+            success(f"Flag {f} ativada.")
         flags = asyncio.run(use_manager.get_flags(pkg))
-        log_info(f"Flags atuais: {flags}")
+        info(f"Flags atuais: {flags}")
 
-def cmd_sync():
-    asyncio.run(sync_manager.sync_all())
-    log_info("Repos sincronizados!")
-
-def cmd_update():
-    updater.update(world=True)
-    log_info("Sistema atualizado!")
-
-def cmd_upgrade():
-    asyncio.run(upgrader.upgrade_packages())
-    log_info("Upgrade concluído!")
+def cmd_sync(): asyncio.run(sync_manager.sync_all()); success("Repos sincronizados!")
+def cmd_update(): updater.update(world=True); success("Sistema atualizado!")
+def cmd_upgrade(): asyncio.run(upgrader.upgrade_packages()); success("Upgrade concluído!")
 
 # --------------------
 # Novos comandos
 # --------------------
 def cmd_info(pkg):
-    # Mostra informações detalhadas sobre o pacote
     recipe = recipe_manager.get_recipe(pkg)
-    status, color = pacote_status(pkg)
+    status = pacote_status(pkg)
     flags = asyncio.run(use_manager.get_flags(pkg))
-    log_title(f"Informações do pacote: {pkg}")
-    print(Fore.MAGENTA + f"Nome: {recipe.name}")
-    print(Fore.MAGENTA + f"Versão: {recipe.version}")
-    print(Fore.MAGENTA + f"Status: {color}{status}")
-    print(Fore.MAGENTA + f"Dependências: {', '.join(recipe.dependencies) if recipe.dependencies else 'Nenhuma'}")
-    print(Fore.MAGENTA + f"Flags USE: {flags}")
-    print(Fore.MAGENTA + f"Receitas: {recipe.recipe_file}")
+    stage(f"Informações do pacote: {pkg}")
+    info(f"Nome: {recipe.name}")
+    info(f"Versão: {recipe.version}")
+    info(f"Status: {status}")
+    info(f"Dependências: {', '.join(recipe.dependencies) if recipe.dependencies else 'Nenhuma'}")
+    info(f"Flags USE: {flags}")
+    info(f"Receitas: {recipe.recipe_file}")
 
 def cmd_build(pkg):
-    # Executa todo o processo de build sem instalar
-    log_info(f"Iniciando build simulado para {pkg}...")
+    stage(f"Iniciando build simulado para {pkg}...")
     downloader.download(pkg)
     extractor.extract_all_parallel(pkg)
     asyncio.run(patcher.apply_recipe_patches(pkg, ["./build_dir"]))
     asyncio.run(hooks.run_all_hooks(pkg))
-    log_info(f"Build de {pkg} concluído (simulado, pacote não instalado).")
+    success(f"Build de {pkg} concluído (simulado, pacote não instalado).")
 
 # --------------------
 # Loop principal
 # --------------------
 def main_loop():
-    log_title("=== Merge Program Manager (Terminal Avançado) ===")
-    log_info("Digite 'help' para ver os comandos disponíveis.\n")
+    stage("=== Merge Program Manager (Terminal Avançado) ===")
+    info("Digite 'help' para ver os comandos disponíveis.\n")
     while True:
         listar_receitas()
-        cmd = input(Fore.YELLOW + "\n> ").strip()
-        if not cmd:
-            continue
+        cmd = input("> ").strip()
+        if not cmd: continue
         parts = cmd.split()
         action = parts[0].lower()
         arg = parts[1] if len(parts) > 1 else None
 
         if action == "help":
-            print(Fore.CYAN + """
+            print("""
 Comandos disponíveis:
  i <pacote>       - Instalar pacote
  r <pacote>       - Remover pacote
@@ -162,8 +151,8 @@ Comandos disponíveis:
         elif action == "upgrade": cmd_upgrade()
         elif action == "info" and arg: cmd_info(arg)
         elif action == "build" and arg: cmd_build(arg)
-        elif action in ["exit", "quit"]: log_info("Saindo do gerenciador..."); break
-        else: log_warning("Comando inválido! Digite 'help' para ajuda.")
+        elif action in ["exit", "quit"]: stage("Saindo do gerenciador..."); break
+        else: warn("Comando inválido! Digite 'help' para ajuda.")
 
 if __name__ == "__main__":
     main_loop()
