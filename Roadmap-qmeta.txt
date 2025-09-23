@@ -1,0 +1,246 @@
+diretório dos metas
+/var/db/repos/qmeta/category/pacote/pacote-versão.meta
+
+
+qmeta --sync — sincronizar a árvore de metas (fetch de novos .meta, atualizações). 
+
+qmeta --info — exibir informações do sistema, ambiente,e configurações usadas pelo qmeta 
+
+qmeta --search <termo> ou -s <termo> — procurar pacotes cujo nome corresponde a termo ou parte dele. 
+
+qmeta --searchdesc <termo> ou -S <termo> — procurar pacotes cujo nome ou descrição contenham o termo. 
+
+qmeta --update ou -u — atualizar pacotes instalados para versões mais recentes, respeitando máscaras, etc. 
+
+qmeta --update --deep ou -uD — atualização levando em conta dependências “profundas” (ou seja, dependências recursivas). 
+
+qmeta --onlydeps — instalar somente dependências de um pacote, sem instalar o pacote em si. 
+
+qmeta --remove ou -C — desinstalar pacotes especificados. 
+
+qmeta--depclean — remover pacotes órfãos (que não são mais necessários como dependências) do sistema. 
+
+qmeta --pretend ou -p — simular o que o qmeta faria, sem realmente executar as mudanças. 
+
+qmeta --verbose ou -v — mostrar mais informação, dependências, e outros detalhes. 
+
+qmeta --ask ou -a — perguntar confirmação antes de proceder com operações que alteram o sistema. 
+
+qmeta --version ou -V — mostrar versão do qmeta
+
+qmeta --list-sets — mostrar os "sets" disponíveis (ex: @world, @system…). 
+
+qmeta --prune ou -P — remover versões antigas instaladas de pacotes, mantendo apenas a mais recente, conforme critérios. 
+
+qmeta --usepkg, --usepkgonly — usar pacotes binários (se disponíveis) em vez de compilar tudo do zero. 
+
+qmeta --noreplace — não reinstalar pacotes já instalados; evitar recompilar se a versão instalada já satisfaz. 
+
+qmeta --nodeps — instalar/desinstalar pacotes ignorando dependências (muito perigoso se não souber o que está fazendo). 
+
+qmeta --quiet-build — reduzir verbosidade durante o build/compilação. 
+
+qmeta --load-average — limitar a carga média permitida para builds paralelos. 
+
+qmeta --jobs ou -j — número de tasks paralelas no build. 
+
+qmeta --keep-going — continuar mesmo se alguns pacotes falharem. 
+
+qmeta --resume — retomar uma operação de qmeta que foi interrompida. 
+
+qmeta --fetchonly — apenas baixar as fontes (distfiles), sem compilar. 
+
+qmeta python list
+qmeta python set 3.12
+Isso define qual python / python3 vai ser chamado globalmente.
+
+🟢 python-exec
+
+Wrapper usado para escolher dinamicamente a versão correta de Python para cada script.
+
+Exemplo: quando você roda pip3, o python-exec redireciona para a versão de Python correspondente que foi instalada.
+
+Isso garante que você possa ter, por exemplo, python3.10 e python3.12 no mesmo sistema sem conflitos.
+
+🔹 3. classes específicas de Python
+
+Usar classes para facilitar .metas que dependem de Python:
+
+python-r1 → para pacotes que suportam múltiplos Pythons.
+
+python-single-r1 → para pacotes que só podem usar uma versão por vez.
+
+distutils-r1 → para pacotes Python instalados via setuptools ou distutils (a maioria dos pacotes PyPI).
+
+
+Isso garante consistência entre .meta e evita duplicação de lógica.
+
+4. Instalação de pacotes Python
+
+ você instala pacotes Python como qualquer outro:
+
+qmeta python/requests
+
+Isso instala a versão de requests compilada contra os PYTHON_TARGETS que você definiu.
+📌 Se você quiser gerenciar pacotes Python manualmente (fora do qmeta), pode usar pip, mas não é recomendado misturar com o que foi instalado pelo qmeta. O ideal é usar virtualenv se quiser ambientes separados.
+
+Atualizações e múltiplas versões
+
+Quando uma versão nova do Python chega
+
+1. Você instala ela (ex: qmeta extra/python:3.12).
+
+
+2. Atualiza PYTHON_TARGETS no qmeta.conf.
+
+
+3. Roda:
+
+qmeta --upgrade --deep @world
+
+Isso recompila pacotes Python com suporte para a nova versão.
+
+
+4. Usa qmeta --set python para definir a versão padrão.
+Portage é escrito em Python → precisa sempre de pelo menos uma versão instalada.
+
+qmeta mantém múltiplas versões de Python em paralelo.
+
+Ferramentas:
+
+qmeta --set python → escolher versão padrão.
+
+python-exec → escolher a versão certa por script.
+
+(python_targets, python_single_target) → definem quais versões serão usadas pelos pacotes.
+
+
+python-exec  (python-r1, distutils-r1) padronizam a forma de lidar com pacotes Python nos .meta
+
+GCC é instalado como slots → você pode ter várias versões lado a lado.
+Exemplo:
+
+/usr/x86_64-pc-linux-gnu/gcc-bin/12.3.0/
+/usr/x86_64-pc-linux-gnu/gcc-bin/13.2.1/
+
+Isso permite compilar pacotes com GCC antigo e novo sem conflito.
+
+
+Você seleciona a versão ativa com:
+
+gcc-config -l
+gcc-config 2
+source /etc/profile
+
+(gcc-config é o equivalente ao script de python mas só para GCC).
+
+Atualização segura da toolchain
+
+O processo recomendado é em camadas:
+
+1. Atualiza o binutils primeiro
+
+qmeta -uav binutils
+qmeta binutils list
+qmeta binutils set X
+
+→ Assim o linker/assembler já estão prontos.
+
+
+2. Depois o GCC
+
+qmeta -uav gcc
+gcc-config -l
+gcc-config X
+source /etc/profile
+
+→ Agora você já está usando o GCC novo.
+
+
+3. Recompile libtool (garante compatibilidade de build systems):
+
+qmeta -1 base/libtool
+
+
+4. Por fim, recompile glibc (biblioteca C usa o GCC novo):
+
+qmeta -uav glibc
+
+Rebuild do mundo com novo GCC
+
+Trocar GCC não recompila nada automaticamente. Para reconstruir todo o sistema com o novo compilador:
+
+qmeta -e @world
+
+Isso recompila todos os pacotes. É demorado, mas garante consistência.
+
+Ferramentas extras
+
+toolchain→ que padroniza .meta do GCC, binutils, glibc.
+
+base/gcc-config → seleciona versão ativa do GCC.
+
+base/binutils-config → seleciona versão ativa do binutils.
+
+crossdev → permite montar toolchains cruzadas (ex: compilar para ARM em um PC x86).
+
+qmeta crossdev
+crossdev -t armv7a-unknown-linux-gnueabihf
+
+Nunca há substituição forçada → sempre mantém múltiplas versões até você trocar.
+
+glibc nunca é slotado → só uma versão pode existir, porque ela é única para todo o sistema.
+
+binutils e GCC são slotados → várias versões convivem.
+
+A troca é feita com gcc-config / binutils-config.
+
+qmeta-dist   # limpa tarballs antigos
+qmeta-pkg    # limpa pacotes compilados antigos
+
+glsa-check -t all   # lista pacotes vulneráveis
+glsa-check -f all   # corrige
+
+revdep-rebuild 
+Reconstrói pacotes quebrados por bibliotecas removidas/atualizadas.
+
+revdep-rebuild
+
+
+
+Comandos de manipulação dos .meta
+
+Ferramenta para interagir com arquivos .meta diretamente.
+Sintaxe:
+
+qmeta nome-do-pacote.meta <comando>
+
+Comandos principais:
+
+manifest → gera/verifica Manifest (hashes das fontes).
+
+fetch → baixa o source (SRC_URI).
+
+unpack → extrai o source para o diretório de trabalho.
+
+compile → compila o pacote.
+
+install → instala em um diretório temporário (sandbox).
+
+qmerge → faz o merge final no sistema (instala de fato).
+
+digest → gera checksums (antigo, substituído por manifest).
+
+clean → limpa diretórios temporários.
+
+test → roda testes definidos no ebuild.
+
+
+Exemplo prático:
+
+cd /var/db/repos/qmeta/extra/nano
+qmeta nano-7.2.meta manifest fetch compile install qmerge clean
+
+⚠️ Normalmente você não roda isso tudo manualmente — o qmeta faz essa sequência automaticamente.
+
+
