@@ -1,0 +1,163 @@
+==============================
+ GENTOO - GUIA DE REFERÊNCIA COMPLETO
+==============================
+
+Autor: ChatGPT
+Formato: TXT offline
+
+==============================
+ 1. ÁRVORE DE DIRETÓRIOS
+==============================
+/etc/portage/             -> Configurações personalizadas do Portage
+/usr/portage/             -> Árvore antiga do Portage (em alguns sistemas substituída por /var/db/repos/gentoo)
+/var/db/repos/            -> Repositórios de ebuilds
+/var/cache/distfiles/     -> Fontes baixados (tarballs, zips)
+/var/cache/binpkgs/       -> Pacotes binários compilados
+/var/tmp/portage/         -> Diretório temporário de compilação
+/var/log/emerge.log       -> Log do emerge
+/etc/make.conf            -> Arquivo de configuração global do Portage
+/etc/portage/package.use  -> USE flags por pacote
+/etc/portage/package.mask -> Máscaras de pacotes
+/etc/portage/package.accept_keywords -> Palavras-chave instáveis/estáveis por pacote
+
+==============================
+ 2. COMANDOS DE MANUTENÇÃO
+==============================
+
+--- emerge (instalação e atualização) ---
+emerge pacote             -> instala um pacote
+emerge -C pacote          -> remove pacote
+emerge -uDNav @world      -> atualização completa do sistema
+emerge -avuDN @world      -> idem com flags novas
+emerge --depclean         -> remove dependências órfãs
+emerge -e @world          -> recompila todo o sistema
+emerge --sync             -> sincroniza árvore do Portage
+emerge -p pacote          -> simula instalação
+emerge --info             -> mostra infos do sistema
+
+--- emaint (manutenção do portage) ---
+emaint sync -a            -> sincroniza todos os repositórios
+emaint check all          -> checa integridade
+emaint cleanconf          -> limpa configs obsoletas
+
+--- eclean (limpeza) ---
+eclean-dist               -> limpa distfiles antigos
+eclean-pkg                -> limpa pacotes binários antigos
+eclean --destructive      -> limpeza agressiva
+
+--- revdep-rebuild (reparar libs quebradas) ---
+revdep-rebuild            -> reconstrói pacotes com libs quebradas
+revdep-rebuild --pretend  -> simula
+revdep-rebuild --library libssl.so.1.1 -> força rebuild de libs específicas
+
+--- etc-update / dispatch-conf (configuração) ---
+etc-update                -> atualiza arquivos em /etc interativamente
+dispatch-conf             -> idem, com backup/histórico
+
+--- glsa-check (segurança) ---
+glsa-check -t all         -> lista pacotes vulneráveis
+glsa-check -f all         -> corrige pacotes vulneráveis
+glsa-check -p all         -> simula correção
+
+--- genlop (histórico e logs) ---
+genlop -l                 -> pacotes instalados recentemente
+genlop -t gcc             -> tempo de compilação do gcc
+genlop --pretend @world   -> estima tempo rebuild
+
+--- elogv (logs) ---
+elogv                     -> mostra logs do emerge
+
+--- equery (gentoolkit) ---
+equery list nano          -> versões instaladas
+equery uses nano          -> USE flags disponíveis
+equery depends nano       -> dependentes
+equery files nano         -> lista arquivos do pacote
+equery belongs /bin/bash  -> pacote dono do arquivo
+
+--- qlist / qfile / qdepends (portage-utils) ---
+qlist -I                  -> lista todos pacotes instalados
+qfile /bin/ls             -> dono de arquivo
+qdepends nano             -> dependências do nano
+
+--- quickpkg (pacotes binários) ---
+quickpkg nano             -> cria pacote binário do nano
+quickpkg @world           -> cria pacotes de todo sistema
+emerge -k pacote          -> instala usando binário se existir
+emerge -K pacote          -> instala somente binário
+
+--- eselect (alternativas) ---
+eselect profile list      -> lista perfis
+eselect profile set 2     -> muda perfil
+eselect python list       -> versões de python
+eselect python set 3.12   -> define versão padrão
+eselect gcc list          -> gccs instalados
+eselect gcc set 2         -> escolhe gcc
+
+--- genkernel (kernel) ---
+genkernel all             -> compila kernel + initramfs automático
+genkernel --menuconfig all-> com menu de configuração
+
+==============================
+ 3. FUNÇÕES DO EMERGE/PORTAGE (DETALHADAS)
+==============================
+
+Sintaxe geral:
+  emerge [options] [packages]
+
+Principais opções agrupadas (extraído de 'man emerge'):
+
+--- Consultas e simulação ---
+-p, --pretend             -> Simula ação (não executa)
+--ask (-a)                -> Pergunta antes de executar
+--search (-s)             -> Busca pacotes no repositório
+--searchdesc (-S)         -> Busca também em descrições
+--info                    -> Mostra informações do sistema
+--verbose (-v)            -> Saída detalhada
+--tree                    -> Exibe árvore de dependências
+--columns                 -> Saída em colunas
+--quiet                   -> Menos saída
+
+--- Atualizações e instalação ---
+-u, --update              -> Atualiza pacotes já instalados
+-D, --deep                -> Considera dependências profundas
+-N, --newuse              -> Recompila pacotes com novas USE flags
+--changed-use             -> Similar a --newuse, foca em pacotes alterados
+--with-bdeps=y            -> Inclui dependências de build na atualização
+--ignore-built-slot-operator-deps -> Ignora algumas dependências específicas
+--emptytree (-e)          -> Recompila como se nada estivesse instalado
+--oneshot (-1)            -> Instala sem registrar no @world
+--noreplace (-n)          -> Não reinstala pacotes já presentes
+--onlydeps (-o)           -> Instala apenas dependências
+--reinstall changed-use   -> Reinstala pacotes com USE alterada
+
+--- Limpeza ---
+--depclean                -> Remove pacotes órfãos
+--prune                   -> Remove versões antigas
+--unmerge (-C)            -> Remove pacotes explicitamente
+
+--- Sincronização e manutenção ---
+--sync                    -> Sincroniza árvore do Portage
+--regen                   -> Regenera cache do Portage
+--metadata                -> Atualiza metadados
+--check-news              -> Verifica notícias do Gentoo
+
+--- Execução e controle ---
+--jobs=N (-j)             -> Número de jobs paralelos
+--load-average=N (-l)     -> Limite de carga média
+--keep-going              -> Continua mesmo após erros
+--resume                  -> Retoma última compilação interrompida
+--nodeps                  -> Ignora dependências
+--buildpkg (-b)           -> Gera pacotes binários ao instalar
+--usepkg (-k)             -> Usa pacotes binários se disponíveis
+--getbinpkg (-g)          -> Obtém pacotes binários de binhost
+
+--- Outras ---
+--color y/n/auto          -> Saída colorida
+--alert y/n               -> Alertas sonoros
+--quiet-build y/n         -> Controla verbosidade de compilação
+--fail-clean y/n          -> Limpa diretórios temporários após falhas
+--resume                  -> Retoma merges interrompidos
+
+==============================
+ FIM DO GUIA
+==============================
